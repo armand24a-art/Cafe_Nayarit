@@ -456,7 +456,7 @@
     <div class="sec-head">
       <div class="sec-tag">05 · La cartografía de la esperanza</div>
       <h2>Área de estudio e idoneidad del territorio</h2>
-      <p>Mapa interactivo con los polígonos del modelo: <b>rojo = alta idoneidad (≥&nbsp;0.5)</b>, <b>naranja = media (0.30–0.49)</b>, <b>verde = baja (&lt;&nbsp;0.30)</b>, junto con la zonificación tripartita del APS-Café. Cambia el mapa base, activa/desactiva capas y haz clic en cualquier polígono para ver su detalle. Los polígonos son una representación esquemática de la región identificada por el modelo.</p>
+      <p>Mapa interactivo con las <b>7,169 celdas</b> del modelo MaxEnt: <b>rojo = alta</b>, <b>naranja = media</b>, <b>verde = baja</b>, <b>beige = muy baja</b> y <b>claro = nula</b>. Cambia el mapa base, activa/desactiva capas y haz clic en cualquier celda para ver su nivel de idoneidad, municipio y superficie.</p>
     </div>
     <div class="map-wrap">
       <div id="map" role="application" aria-label="Mapa interactivo del área de estudio en Nayarit"></div>
@@ -612,7 +612,6 @@
   </div>
 </div>
 
-<script src="data/nayarit_idoneidad.js"></script>
 <script>
   /* ---------- Nav móvil ---------- */
   const navToggle=document.getElementById('navToggle'),navLinks=document.getElementById('navLinks');
@@ -672,13 +671,12 @@
   };
   bases.osm.addTo(map);
 
-  const coloresIdoneidad={'Alta':'#d73027','Media':'#fc8d59','Baja':'#b8e186'};
-  const estilosIdoneidad={'Alta':{color:'#a61424',weight:2,fillColor:'#d73027',fillOpacity:.55},
-                          'Media':{color:'#e06424',weight:2,fillColor:'#fc8d59',fillOpacity:.5},
-                          'Baja':{color:'#6f9f3c',weight:2,fillColor:'#b8e186',fillOpacity:.45}};
-  const estilosAps={'Nucleo':{color:'#7b3294',weight:3,fillOpacity:.06,dashArray:'8 5'},
-                    'Amortiguamiento':{color:'#33a02c',weight:3,fillOpacity:.06,dashArray:'8 5'},
-                    'Conservacion':{color:'#1f78b4',weight:3,fillOpacity:.06,dashArray:'8 5'}};
+  const coloresIdoneidad={'Alta':'#d73027','Media':'#fc8d59','Baja':'#b8e186','Muy Baja':'#e8d9c0','Nula':'#f5efe7'};
+  const estilosIdoneidad={'Alta':{color:'#a61424',weight:1,fillColor:'#d73027',fillOpacity:.6},
+                          'Media':{color:'#e06424',weight:1,fillColor:'#fc8d59',fillOpacity:.55},
+                          'Baja':{color:'#6f9f3c',weight:1,fillColor:'#b8e186',fillOpacity:.55},
+                          'Muy Baja':{color:'#c4b097',weight:1,fillColor:'#e8d9c0',fillOpacity:.5},
+                          'Nula':{color:'#d3c9bd',weight:1,fillColor:'#f5efe7',fillOpacity:.4}};
 
   let capas={}; // contenedor de las capas para checkboxes
 
@@ -686,51 +684,24 @@
 
   function construirCapas(gj){
     capas.limite=L.geoJSON(gj,{
-      filter:f=>f.properties.capa==='limite',
-      style:{color:'#3E2723',weight:3,dashArray:'5 4',fillColor:'#8D6E63',fillOpacity:.08},
+      style:{color:'#3E2723',weight:1.5,dashArray:'4 3',fill:false},
       onEachFeature:(f,l)=>l.bindPopup(popup(
-        '<b>'+f.properties.nombre+'</b><br>'+(f.properties.descripcion||'')))
+        '<b>Área de estudio · Nayarit</b><br>'+
+        '<span style="color:#666">'+f.properties.NOM_MUN+'</span>'))
     });
 
     capas.idoneidad=L.geoJSON(gj,{
-      filter:f=>f.properties.capa==='idoneidad',
-      style:f=>estilosIdoneidad[f.properties.categoria],
+      style:f=>estilosIdoneidad[f.properties.Nivel]||estilosIdoneidad.Nula,
       onEachFeature:(f,l)=>l.bindPopup(popup(
-        '<b style="color:'+coloresIdoneidad[f.properties.categoria]+'">Idoneidad '+f.properties.categoria.toLowerCase()+'</b><br>'+
-        '<span style="color:#666">Valor '+f.properties.rango+'</span><br>'+(f.properties.descripcion||'')))
-    });
-
-    capas.aps=L.geoJSON(gj,{
-      filter:f=>f.properties.capa==='aps',
-      style:f=>estilosAps[f.properties.zona],
-      onEachFeature:(f,l)=>l.bindPopup(popup(
-        '<b style="color:'+estilosAps[f.properties.zona].color+'">Zona '+f.properties.zona.replace('Conservacion','de Conservación')+' · APS-Café</b><br>'+
-        '<span style="color:#666">'+f.properties.superficie_ha.toLocaleString('es-MX')+' ha ('+f.properties.area_km2.toLocaleString('es-MX')+' km² · '+f.properties.pct_territorio+'% del estado)</span><br>'+
-        (f.properties.descripcion||'')))
-    });
-
-    capas.presencia=L.geoJSON(gj,{
-      filter:f=>f.properties.capa==='presencia',
-      pointToLayer:(f,latlng)=>L.circleMarker(latlng,{radius:4,color:'#4e230f',weight:1,fillColor:'#6d2600',fillOpacity:.85}),
-      onEachFeature:(f,l)=>l.bindPopup(popup(
-        '<b>Registro de presencia de café</b><br><span style="color:#666">'+(f.properties.descripcion||'')+'</span>'+
-        (f.properties.n?'<br><b>Total muestra:</b> '+f.properties.n.toLocaleString('es-MX')+' registros (2012–2020)':'')))
-    });
-
-    capas.municipios=L.geoJSON(gj,{
-      filter:f=>f.properties.capa==='municipios',
-      pointToLayer:(f,latlng)=>L.circleMarker(latlng,{radius:7,color:'#3E2723',weight:2,fillColor:'#FFD166',fillOpacity:.95}),
-      onEachFeature:(f,l)=>l.bindPopup(popup(
-        '<b>'+f.properties.nombre+'</b><br><b style="color:#6D4C41">Aptitud:</b> '+(f.properties.aptitud||'—')+'<br><span style="color:#666">'+(f.properties.altura||'')+'</span>'))
+        '<b style="color:'+coloresIdoneidad[f.properties.Nivel]+'">Idoneidad: '+(f.properties.Nivel||'').toLowerCase()+'</b><br>'+
+        '<b style="color:#6D4C41">'+(f.properties.NOM_MUN||'')+'</b><br>'+
+        '<span style="color:#666">Superficie de la celda: '+(f.properties.super!=null?f.properties.super.toLocaleString('es-MX',{maximumFractionDigits:2})+' km²':'—')+'</span>'))
     });
 
     capas.limite.addTo(map);
     capas.idoneidad.addTo(map);
-    capas.aps.addTo(map);
-    capas.presencia.addTo(map);
-    capas.municipios.addTo(map);
 
-    map.fitBounds(capas.limite.getBounds(),{padding:[18,18]});
+    map.fitBounds(capas.idoneidad.getBounds(),{padding:[18,18]});
   }
 
   /* Panel de control personalizado */
@@ -747,22 +718,15 @@
       '</div>'+
       '<h5>Capas</h5>'+
       '<div class="grupo">'+
-        '<label><input type="checkbox" id="ck-limite" checked> Límite estatal / área de estudio</label>'+
-        '<label><input type="checkbox" id="ck-idoneidad" checked> Idoneidad del cultivo (MaxEnt)</label>'+
-        '<label><input type="checkbox" id="ck-aps" checked> APS-Café (zonas de gestión)</label>'+
-        '<label><input type="checkbox" id="ck-presencia" checked> Registros de presencia</label>'+
-        '<label><input type="checkbox" id="ck-municipios" checked> Municipios</label>'+
+        '<label><input type="checkbox" id="ck-limite" checked> Área de estudio (Nayarit)</label>'+
+        '<label><input type="checkbox" id="ck-idoneidad" checked> Idoneidad del cultivo (celdas MaxEnt)</label>'+
       '</div>'+
       '<h5>Leyenda · Idoneidad</h5>'+
-      '<div class="ley-line"><span class="sw" style="background:#d73027"></span> Alta (≥ 0.5)</div>'+
-      '<div class="ley-line"><span class="sw" style="background:#fc8d59"></span> Media (0.30–0.49)</div>'+
-      '<div class="ley-line"><span class="sw" style="background:#b8e186"></span> Baja (&lt; 0.30)</div>'+
-      '<h5>Leyenda · APS-Café</h5>'+
-      '<div class="ley-line"><span class="sw" style="background:#7b3294"></span> Zona Núcleo (831 km²)</div>'+
-      '<div class="ley-line"><span class="sw" style="background:#33a02c"></span> Amortiguamiento (2,649 km²)</div>'+
-      '<div class="ley-line"><span class="sw" style="background:#1f78b4"></span> Conservación (4,519 km²)</div>'+
-      '<div class="ley-line"><span class="sw" style="background:#6d2600"></span> Presencia de café</div>'+
-      '<div class="ley-line"><span class="sw" style="background:#FFD166"></span> Municipio</div>'+
+      '<div class="ley-line"><span class="sw" style="background:#d73027"></span> Alta</div>'+
+      '<div class="ley-line"><span class="sw" style="background:#fc8d59"></span> Media</div>'+
+      '<div class="ley-line"><span class="sw" style="background:#b8e186"></span> Baja</div>'+
+      '<div class="ley-line"><span class="sw" style="background:#e8d9c0"></span> Muy baja</div>'+
+      '<div class="ley-line"><span class="sw" style="background:#f5efe7"></span> Nula</div>'+
       '<button class="colap" id="colapMap" type="button">Colapsar panel</button>';
     return d;
   };
@@ -787,8 +751,7 @@
   });
 
   function cargarGeoJSON(){
-    if(window.NAYARIT_IDONEIDAD){ construirCapas(window.NAYARIT_IDONEIDAD); return; }
-    fetch('data/nayarit_idoneidad.geojson')
+    fetch('data/cafe.geojson')
       .then(r=>{if(!r.ok)throw new Error('HTTP '+r.status);return r.json();})
       .then(construirCapas)
       .catch(mostrarErrorGeoJSON);
