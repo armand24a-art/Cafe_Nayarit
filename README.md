@@ -32,7 +32,9 @@ Site_Cafe/
 ├── index.html                     (página completa)
 ├── favicon.svg
 ├── data/
-│   └── nayarit_idoneidad.geojson  (área de estudio e idoneidad)
+│   ├── nayarit_idoneidad.geojson  (área de estudio e idoneidad)
+│   └── nayarit_idoneidad.js       (misma capa incrustada para que el mapa
+│                                   cargue aunque se abra el sitio localmente)
 └── README.md
 ```
 
