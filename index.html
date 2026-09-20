@@ -456,7 +456,7 @@
     <div class="sec-head">
       <div class="sec-tag">05 · La cartografía de la esperanza</div>
       <h2>Área de estudio e idoneidad del territorio</h2>
-      <p>Mapa interactivo con las <b>7,169 celdas</b> del modelo MaxEnt: <b>rojo = alta</b>, <b>naranja = media</b>, <b>verde = baja</b>, <b>beige = muy baja</b> y <b>claro = nula</b>. Cambia el mapa base, activa/desactiva capas y haz clic en cualquier celda para ver su nivel de idoneidad, municipio y superficie.</p>
+      <p>Mapa interactivo de Nayarit con sus <b>20 municipios</b> y las <b>7,169 celdas</b> del modelo MaxEnt, <b>ambas capas activas</b>: <b>rojo = alta</b>, <b>naranja = media</b>, <b>verde = baja</b>, <b>beige = muy baja</b> y <b>claro = nula</b>. Activa o desactiva cada capa y haz clic en cualquier elemento para ver municipio, límite estatal o el detalle de idoneidad de cada celda.</p>
     </div>
     <div class="map-wrap">
       <div id="map" role="application" aria-label="Mapa interactivo del área de estudio en Nayarit"></div>
@@ -682,15 +682,23 @@
 
   function popup(html){return '<div style="font-family:Segoe UI,sans-serif;font-size:13px;line-height:1.5">'+html+'</div>';}
 
-  function construirCapas(gj){
-    capas.limite=L.geoJSON(gj,{
-      style:{color:'#3E2723',weight:1.5,dashArray:'4 3',fill:false},
+  function construirCapas(estado,municipios,celdas){
+    capas.limite=L.geoJSON(estado,{
+      style:{color:'#3E2723',weight:2.5,dashArray:'6 4',fill:false},
       onEachFeature:(f,l)=>l.bindPopup(popup(
-        '<b>Área de estudio · Nayarit</b><br>'+
-        '<span style="color:#666">'+f.properties.NOM_MUN+'</span>'))
+        '<b>Estado de '+(f.properties.NOM_ENT||'Nayarit')+'</b><br>'+
+        '<span style="color:#666">Capital: '+(f.properties.CAPITAL||'—')+'</span>'))
     });
 
-    capas.idoneidad=L.geoJSON(gj,{
+    capas.municipios=L.geoJSON(municipios,{
+      style:{color:'#8D6E63',weight:1.5,fill:false},
+      onEachFeature:(f,l)=>l.bindPopup(popup(
+        '<b>Municipio: '+(f.properties.NOM_MUN||'')+'</b><br>'+
+        '<b style="color:#6D4C41">Nayarit</b><br>'+
+        '<span style="color:#666">Superficie: '+(f.properties.AREA_1!=null?Number(f.properties.AREA_1).toLocaleString('es-MX',{maximumFractionDigits:0})+' km²':'—')+'</span>'))
+    });
+
+    capas.idoneidad=L.geoJSON(celdas,{
       style:f=>estilosIdoneidad[f.properties.Nivel]||estilosIdoneidad.Nula,
       onEachFeature:(f,l)=>l.bindPopup(popup(
         '<b style="color:'+coloresIdoneidad[f.properties.Nivel]+'">Idoneidad: '+(f.properties.Nivel||'').toLowerCase()+'</b><br>'+
@@ -698,10 +706,11 @@
         '<span style="color:#666">Superficie de la celda: '+(f.properties.super!=null?f.properties.super.toLocaleString('es-MX',{maximumFractionDigits:2})+' km²':'—')+'</span>'))
     });
 
-    capas.limite.addTo(map);
     capas.idoneidad.addTo(map);
+    capas.municipios.addTo(map);
+    capas.limite.addTo(map);
 
-    map.fitBounds(capas.idoneidad.getBounds(),{padding:[18,18]});
+    map.fitBounds(capas.municipios.getBounds(),{padding:[18,18]});
   }
 
   /* Panel de control personalizado */
@@ -718,11 +727,14 @@
       '</div>'+
       '<h5>Capas</h5>'+
       '<div class="grupo">'+
-        '<label><input type="checkbox" id="ck-limite" checked> Área de estudio (Nayarit)</label>'+
-        '<label><input type="checkbox" id="ck-idoneidad" checked> Idoneidad del cultivo (celdas MaxEnt)</label>'+
+        '<label><input type="checkbox" id="ck-limite" checked> Límite estatal (Nayarit)</label>'+
+        '<label><input type="checkbox" id="ck-municipios" checked> Municipios</label>'+
+        '<label><input type="checkbox" id="ck-idoneidad" checked> Idoneidad (celdas MaxEnt)</label>'+
       '</div>'+
-      '<h5>Leyenda · Idoneidad</h5>'+
-      '<div class="ley-line"><span class="sw" style="background:#d73027"></span> Alta</div>'+
+      '<h5>Leyenda</h5>'+
+      '<div class="ley-line"><span class="sw" style="border:2px dashed #3E2723;background:transparent"></span> Límite estatal</div>'+
+      '<div class="ley-line"><span class="sw" style="border:1.5px solid #8D6E63;background:transparent"></span> Municipios</div>'+
+      '<div class="ley-line"><span class="sw" style="background:#d73027"></span> Idoneidad alta</div>'+
       '<div class="ley-line"><span class="sw" style="background:#fc8d59"></span> Media</div>'+
       '<div class="ley-line"><span class="sw" style="background:#b8e186"></span> Baja</div>'+
       '<div class="ley-line"><span class="sw" style="background:#e8d9c0"></span> Muy baja</div>'+
@@ -751,9 +763,13 @@
   });
 
   function cargarGeoJSON(){
-    fetch('data/cafe.geojson')
-      .then(r=>{if(!r.ok)throw new Error('HTTP '+r.status);return r.json();})
-      .then(construirCapas)
+    const cargar=(url)=>fetch(url).then(r=>{if(!r.ok)throw new Error('HTTP '+r.status+' para '+url);return r.json();});
+    Promise.all([
+      cargar('data/Estado_Nayarit.geojson'),
+      cargar('data/Municipios_Nayarit.geojson'),
+      cargar('data/cafe.geojson')
+    ])
+      .then(([estado,municipios,celdas])=>construirCapas(estado,municipios,celdas))
       .catch(mostrarErrorGeoJSON);
   }
   function mostrarErrorGeoJSON(err){
